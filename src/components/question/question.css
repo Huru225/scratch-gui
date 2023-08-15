@@ -45,7 +45,7 @@
     border-radius: 100%;
 
     color: white;
-    background: $motion-primary;
+    background: hsla(0, 100%, 65%, 1);
 }
 
 [dir="ltr"] .question-submit-button {
