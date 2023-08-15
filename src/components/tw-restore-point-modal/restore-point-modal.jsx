@@ -13,8 +13,70 @@ const messages = defineMessages({
         defaultMessage: 'Restore Points',
         description: 'Title of restore point management modal',
         id: 'tw.restorePoints.title'
+    },
+    never: {
+        defaultMessage: 'never',
+        id: 'tw.restorePoints.never',
+        description: 'Part of restore point modal. Appears as dropdown in context "Restore points are created [never]"'
+    },
+    oneMinute: {
+        defaultMessage: 'every minute',
+        id: 'tw.restorePoints.1minute',
+        // eslint-disable-next-line max-len
+        description: 'Part of restore point modal. Appears as dropdown in context "Restore points are created [every minute]"'
+    },
+    minutes: {
+        defaultMessage: 'every {n} minutes',
+        id: 'tw.restorePoints.minutes',
+        // eslint-disable-next-line max-len
+        description: 'Part of restore point modal. Appears as dropdown in context "Restore points are created [every 5 minutes]". {n} will be replaced with a number greater than 1.'
     }
 });
+
+const MINUTE = 1000 * 60;
+const INTERVAL_OPTIONS = [
+    MINUTE * 1,
+    MINUTE * 5,
+    MINUTE * 10,
+    MINUTE * 15,
+    MINUTE * 30,
+    -1
+];
+const IntervalSelector = props => (
+    <select
+        value={props.value}
+        onChange={props.onChange}
+    >
+        {INTERVAL_OPTIONS.map(interval => (
+            <option
+                key={interval}
+                value={interval}
+            >
+                {interval < 0 ? (
+                    props.intl.formatMessage(messages.never)
+                ) : interval === MINUTE ? (
+                    props.intl.formatMessage(messages.oneMinute)
+                ) : (
+                    props.intl.formatMessage(messages.minutes, {
+                        n: Math.round(interval / MINUTE)
+                    })
+                )}
+            </option>
+        ))}
+        {!INTERVAL_OPTIONS.includes(props.value) && (
+            // This should never happen unless someone manually edits their storage, so we
+            // don't need to worry about making this work good.
+            <option value={props.value}>
+                {`every ${props.value}ms`}
+            </option>
+        )}
+    </select>
+);
+IntervalSelector.propTypes = {
+    intl: intlShape,
+    value: PropTypes.number.isRequired,
+    onChange: PropTypes.func.isRequired
+};
 
 const RestorePointModal = props => (
     <Modal
@@ -35,14 +97,31 @@ const RestorePointModal = props => (
                 />
             </p>
 
-            {props.disabled && (
+            <p>
+                <FormattedMessage
+                    defaultMessage="Restore points are created {time}."
+                    id="tw.restorePoints.intervalOption"
+                    // eslint-disable-next-line max-len
+                    description="{time} will be replaced with a dropdown with values such as [every 5 minutes] and [never]"
+                    values={{
+                        time: (
+                            <IntervalSelector
+                                intl={props.intl}
+                                value={props.interval}
+                                onChange={props.onChangeInterval}
+                            />
+                        )
+                    }}
+                />
+            </p>
+
+            {props.interval < 0 && (
                 <p className={styles.disabled}>
                     <FormattedMessage
+                        defaultMessage="Disabling restore points is dangerous."
                         // eslint-disable-next-line max-len
-                        defaultMessage="Disable the &quot;Disable restore points&quot; addon to re-enable restore point creation."
-                        // eslint-disable-next-line max-len
-                        description="Message that appears in restore point manager when the user has disabled restore points. Note that the name of the addon in the addon settings is currently hardcoded as English."
-                        id="tw.restorePoints.disabled"
+                        description="Warning that appears in restore point modal when the user has disabled restore points."
+                        id="tw.restorePoints.off"
                     />
                 </p>
             )}
@@ -73,17 +152,15 @@ const RestorePointModal = props => (
                     />
                 </div>
             ) : props.restorePoints.length === 0 ? (
-                <div>
-                    <div className={styles.empty}>
-                        <FormattedMessage
-                            defaultMessage="No restore points found."
-                            description="Message that appears when no restore points exist yet"
-                            id="tw.restorePoints.empty"
-                        />
-                    </div>
+                <div className={styles.empty}>
+                    <FormattedMessage
+                        defaultMessage="No restore points found."
+                        description="Message that appears when no restore points exist yet"
+                        id="tw.restorePoints.empty"
+                    />
                 </div>
             ) : (
-                <div>
+                <React.Fragment>
                     <div className={styles.restorePointContainer}>
                         {props.restorePoints.map(restorePoint => (
                             <RestorePoint
@@ -130,10 +207,10 @@ const RestorePointModal = props => (
                             />
                         </button>
                     </div>
-                </div>
+                </React.Fragment>
             )}
 
-            {!props.isLoading && (
+            {!props.isLoading && props.onClickLoadLegacy && (
                 <details className={styles.legacyTransition}>
                     {/* This is going away within a few days */}
                     {/* No reason to bother translating */}
@@ -158,13 +235,14 @@ const RestorePointModal = props => (
 
 RestorePointModal.propTypes = {
     intl: intlShape,
+    interval: PropTypes.number.isRequired,
+    onChangeInterval: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired,
     onClickCreate: PropTypes.func.isRequired,
     onClickDelete: PropTypes.func.isRequired,
     onClickDeleteAll: PropTypes.func.isRequired,
     onClickLoad: PropTypes.func.isRequired,
-    onClickLoadLegacy: PropTypes.func.isRequired,
-    disabled: PropTypes.bool.isRequired,
+    onClickLoadLegacy: PropTypes.func,
     isLoading: PropTypes.bool.isRequired,
     totalSize: PropTypes.number.isRequired,
     restorePoints: PropTypes.arrayOf(PropTypes.shape({})),
